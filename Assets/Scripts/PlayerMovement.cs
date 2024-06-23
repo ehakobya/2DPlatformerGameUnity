@@ -1,102 +1,93 @@
-using Unity.VisualScripting;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour {
-
+public class PlayerMovement : MonoBehaviour
+{
     [SerializeField] private float speed;
     [SerializeField] private float jumpPower;
-    [SerializeField] private LayerMask groundLayerMask;
-    [SerializeField] private LayerMask wallLayerMask;
-
-    // player object references
-
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private LayerMask wallLayer;
     private Rigidbody2D body;
-    private Animator animator;
+    private Animator anim;
     private BoxCollider2D boxCollider;
     private float wallJumpCooldown;
     private float horizontalInput;
 
-    // Get reference of the objects
-    // player movement script is attached to player object,
-    // GetComponent will search the player object and return the Rigidbody2D or others
-    private void Awake() {
+    private void Awake()
+    {
+        //Grab references for rigidbody and animator from object
         body = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
+        anim = GetComponent<Animator>();
         boxCollider = GetComponent<BoxCollider2D>();
     }
 
-    private void Update() {
-
+    private void Update()
+    {
         horizontalInput = Input.GetAxis("Horizontal");
 
-        // flip character to towards right
-        if (horizontalInput > 0.01f) {
+        //Flip player when moving left-right
+        if (horizontalInput > 0.01f)
             transform.localScale = Vector3.one;
-        }
-        // flip character towards left
-        else if (horizontalInput < -0.01f) {
+        else if (horizontalInput < -0.01f)
             transform.localScale = new Vector3(-1, 1, 1);
-        }
 
-        // wall jump logic
-        if (wallJumpCooldown > 0.2f) {
+        //Set animator parameters
+        anim.SetBool("run", horizontalInput != 0);
+        anim.SetBool("grounded", isGrounded());
 
+        //Wall jump logic
+        if (wallJumpCooldown > 0.2f)
+        {
             body.velocity = new Vector2(horizontalInput * speed, body.velocity.y);
-            if (isOnWall() && !isOnGround()) {
+
+            if (onWall() && !isGrounded())
+            {
                 body.gravityScale = 0;
                 body.velocity = Vector2.zero;
             }
-            else {
+            else
                 body.gravityScale = 7;
-            }
 
-            if (Input.GetKey(KeyCode.Space)) {
+            if (Input.GetKey(KeyCode.Space))
                 Jump();
-            }
-
         }
-        else {
+        else
             wallJumpCooldown += Time.deltaTime;
-        }
-
-
-        // Set animation parameters when there is a key press on horizontal axis
-        animator.SetBool("isRunning", horizontalInput != 0);
-        animator.SetBool("isOnGround", isOnGround());
     }
 
-    private void Jump() {
-        if (isOnGround()) {
-            // maintain current velocity in x, apply speed on y dir
+    private void Jump()
+    {
+        if (isGrounded())
+        {
             body.velocity = new Vector2(body.velocity.x, jumpPower);
-            animator.SetTrigger("isJumping");
+            anim.SetTrigger("jump");
         }
-        else if (isOnWall() && !isOnGround()) {
-            if (horizontalInput == 0) {
+        else if (onWall() && !isGrounded())
+        {
+            if (horizontalInput == 0)
+            {
                 body.velocity = new Vector2(-Mathf.Sign(transform.localScale.x) * 10, 0);
                 transform.localScale = new Vector3(-Mathf.Sign(transform.localScale.x), transform.localScale.y, transform.localScale.z);
             }
-            else {
+            else
                 body.velocity = new Vector2(-Mathf.Sign(transform.localScale.x) * 3, 6);
-            }
+
             wallJumpCooldown = 0;
         }
-
     }
 
-    // this function is called every time the collider in this (player) touches
-    // another collider
-    private void OnCollisionEnter2D(Collision2D collision) {
 
-    }
-
-    public bool isOnGround() {
-        RaycastHit2D raycastHit = Physics2D.BoxCast(boxCollider.bounds.center, boxCollider.bounds.size, 0, Vector2.down, 0.1f, groundLayerMask);
+    private bool isGrounded()
+    {
+        RaycastHit2D raycastHit = Physics2D.BoxCast(boxCollider.bounds.center, boxCollider.bounds.size, 0, Vector2.down, 0.1f, groundLayer);
         return raycastHit.collider != null;
     }
-
-    public bool isOnWall() {
-        RaycastHit2D raycastHit = Physics2D.BoxCast(boxCollider.bounds.center, boxCollider.bounds.size, 0, new Vector2(transform.localScale.x, 0), 0.1f, wallLayerMask);
+    private bool onWall()
+    {
+        RaycastHit2D raycastHit = Physics2D.BoxCast(boxCollider.bounds.center, boxCollider.bounds.size, 0, new Vector2(transform.localScale.x, 0), 0.1f, wallLayer);
         return raycastHit.collider != null;
+    }
+    public bool canAttack()
+    {
+        return horizontalInput == 0 && isGrounded() && !onWall();
     }
 }
